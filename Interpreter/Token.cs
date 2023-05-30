@@ -32,10 +32,10 @@ namespace Interpreter
     {
         private TokenType _type;
         private string _lexeme;
-        private object _literal;
+        private object? _literal;
         private int _line;
 
-        public Token(TokenType type, string lexeme, object literal, int line)
+        public Token(TokenType type, string lexeme, object? literal, int line)
         {
             _type = type;
             _lexeme = lexeme;
