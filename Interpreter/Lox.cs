@@ -51,7 +51,6 @@ namespace Interpreter
             //List<Token> tokens = scanner.scanTokens();
 
             // For now, just print the tokens.
-
         }
         public static void Error(int line, string message)
         {
