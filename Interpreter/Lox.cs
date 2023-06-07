@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LoxGenerated;
+using System;
 
 namespace Interpreter
 {
@@ -19,6 +20,17 @@ namespace Interpreter
             else
             {
                 RunPrompt();    
+            }
+        }
+        public static void Error(Token token, string message)
+        {
+            if(token.type == TokenType.EOF)
+            {
+                Report(token.line, "at end", message);
+            }
+            else
+            {
+                Report(token.line, $"at {token.lexeme}", message);  
             }
         }
 
@@ -47,10 +59,18 @@ namespace Interpreter
 
         private static void Run(String source)
         {
-            //Scanner scanner = new Scanner(source);
-            //List<Token> tokens = scanner.scanTokens();
+            Scanner scanner = new Scanner(source);
+            List<Token> tokens = scanner.ScanTokens();
 
-            // For now, just print the tokens.
+            Parser parser = new Parser(tokens);
+            Expr expression = parser.Parse();
+
+            // Stop if there was a syntax error.
+            if(_hadError)
+            {
+                return;
+            }
+            Console.WriteLine(new AstPrinter().Print(expression!));
         }
         public static void Error(int line, string message)
         {

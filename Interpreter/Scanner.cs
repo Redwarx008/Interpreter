@@ -137,7 +137,7 @@ namespace Interpreter
                 ++_current;
             }
 
-            string text = _source.Substring(_start, _current);
+            string text = _source.Substring(_start, _current - _start);
             TokenType type = TokenType.IDENTIFIER;
             _ = _keyWords.TryGetValue(text, out type);
             AddToken(type);
@@ -158,7 +158,7 @@ namespace Interpreter
             {
                 ++_current;
             }
-            AddToken(TokenType.NUMBER, Double.Parse(_source.Substring(_start, _current)));
+            AddToken(TokenType.NUMBER, Double.Parse(_source.Substring(_start, _current - _start)));
         }
         private void StringHandler()
         {
@@ -178,7 +178,7 @@ namespace Interpreter
             // The closing ".
             ++_current;
             // Trim the surrounding quotes.
-            string value = _source.Substring(_start + 1, _current - 1);
+            string value = _source.Substring(_start + 1, _current - 1 - (_start + 1));
             AddToken(TokenType.STRING, value);
         }
         private char Advance()
@@ -188,11 +188,11 @@ namespace Interpreter
         }
         private void AddToken(TokenType type)
         {
-            AddToken(type);
+            AddToken(type, null);
         }
-        private void AddToken(TokenType type, Object literal)
+        private void AddToken(TokenType type, Object? literal)
         {
-            String text = _source.Substring(_start, _current);
+            String text = _source.Substring(_start, _current - _start);
             _tokens.Add(new Token(type, text, literal, _line));
         }
         private bool Match(char expected)
