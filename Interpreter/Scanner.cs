@@ -139,7 +139,10 @@ namespace Interpreter
 
             string text = _source.Substring(_start, _current - _start);
             TokenType type = TokenType.IDENTIFIER;
-            _ = _keyWords.TryGetValue(text, out type);
+            if(!_keyWords.TryGetValue(text, out type))
+            {
+                type = TokenType.IDENTIFIER;
+            }
             AddToken(type);
         }
         private void NumberHandler()
