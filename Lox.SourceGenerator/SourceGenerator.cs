@@ -32,7 +32,7 @@ namespace Lox.SourceGenerator
             {
                 string typeName = types[i].Split(':')[0].Trim();
                 _codeSB.Append($@"
-            R Visit{typeName}{baseName}({typeName} {baseName.ToLower()});
+            public R? Visit{typeName}{baseName}({typeName} {baseName.ToLower()});
 ");
             }
 
