@@ -7,8 +7,20 @@ using LoxGenerated;
 
 namespace Interpreter
 {
-    internal class Interpreter : Expr.Visitor<object>
+    internal class Interpreter : Expr.Visitor<Object>
     {
+        public void Interpret(Expr expression)
+        {
+            try
+            {
+                object value = Evaluate(expression);
+                Console.WriteLine(Stringify(value));
+            }
+            catch(RuntimeError error)
+            {
+                Lox.RunTimeError(error);    
+            }
+        }
         public object? VisitBinaryExpr(Expr.Binary expr)
         {
             object left = Evaluate(expr.left);
@@ -17,22 +29,29 @@ namespace Interpreter
             switch(expr.loxOperator.type)
             {
                 case TokenType.GREATER:
+                    CheckNumberOperands(expr.loxOperator, left, right);
                     return (double)left > (double)right;
                 case TokenType.GREATER_EQUAL:
+                    CheckNumberOperands(expr.loxOperator, left , right);
                     return (double)left >= (double)right;
                 case TokenType.LESS:
+                    CheckNumberOperands(expr.loxOperator, left, right);
                     return (double)left < (double)right;
                 case TokenType.LESS_EQUAL:
+                    CheckNumberOperands(expr.loxOperator, left, right);
                     return (double)left <= (double)right;
                 case TokenType.SLASH:
+                    CheckNumberOperands(expr.loxOperator, left, right);
                     return (double)left / (double)right;
                 case TokenType.BANG_EQUAL:
                     return !IsEqual(left, right);
                 case TokenType.EQUAL_EQUAL:
                     return IsEqual(left, right);
                 case TokenType.STAR:
+                    CheckNumberOperands(expr.loxOperator, left, right);
                     return (double)left * (double)right;
                 case TokenType.MINUS:
+                    CheckNumberOperands(expr.loxOperator, left, right);
                     return (double)left - (double)right;
                 case TokenType.PLUS:
                     if(left is double leftNum && right is double rightNum)
@@ -43,7 +62,7 @@ namespace Interpreter
                     {
                         return leftStr + rightStr;
                     }
-                    break;
+                    throw new RuntimeError(expr.loxOperator, "Operands must be two numbers or two strings.");
             }
             // Unreachable.
             return null;
@@ -66,6 +85,7 @@ namespace Interpreter
             switch(expr.loxOperator.type)
             {
                 case TokenType.MINUS:
+                    CheckNumberOperand(expr.loxOperator, right);
                     return -(double)right;
                 case TokenType.BANG:
                     return !IsTruthy(right);
@@ -73,18 +93,52 @@ namespace Interpreter
             // Unreachable.
             return null!;
         }
-        private bool IsTruthy(object o)
+        private void CheckNumberOperand(Token loxOperator, object operand)
         {
-            if(o == null) return false;
-            if(o is bool boolean)
+            if(operand is double)
+            {
+                return;
+            }
+            throw new RuntimeError(loxOperator, "Operand must be a number.");
+        }
+        private void CheckNumberOperands(Token loxOperator, object leftOperand, object rightOperand)
+        {
+            if(leftOperand is double && rightOperand is double)
+            {
+                return;
+            }
+            throw new RuntimeError(loxOperator, "Operands must be a numbers.");
+        }
+        private bool IsTruthy(object obj)
+        {
+            if(obj == null) return false;
+            if(obj is bool boolean)
             {
                 return boolean;
             }
             return true;
         }
-        private bool IsEqual(object a, object b)
+        private bool IsEqual(object objA, object objB)
         {
-            return Object.Equals(a, b);
+            return Object.Equals(objA, objB);
+        }
+        private string Stringify(object obj)
+        {
+            if(obj == null)
+            {
+                return "nil";
+            }
+            if(obj is double objDouble)
+            {
+                string text = objDouble.ToString();
+                if (text.EndsWith(".0"))
+                {
+                    text = text.Substring(0, text.Length - 2);
+                }
+                return text;    
+
+            }
+            return obj.ToString()!;
         }
         private object Evaluate(Expr expr)
         {

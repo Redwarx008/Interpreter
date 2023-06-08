@@ -5,7 +5,10 @@ namespace Interpreter
 {
     internal class Lox
     {
+        private static Interpreter _interpreter = new();
+
         static bool _hadError = false;
+        static bool _hadRuntimeErrpr = false;
         static void Main(string[] args)
         {
             if(args.Length > 1)
@@ -43,6 +46,10 @@ namespace Interpreter
             {
                 System.Environment.Exit(65);
             }
+            if(_hadRuntimeErrpr)
+            {
+                System.Environment.Exit(70);
+            }
         }
         private static void RunPrompt()
         {
@@ -70,11 +77,17 @@ namespace Interpreter
             {
                 return;
             }
-            Console.WriteLine(new AstPrinter().Print(expression!));
+            //Console.WriteLine(new AstPrinter().Print(expression!));
+            _interpreter.Interpret(expression!);
         }
         public static void Error(int line, string message)
         {
             Report(line, "", message);
+        }
+        public static void RunTimeError(RuntimeError error)
+        {
+            Console.Write(error.Message + $"\n[line {error.token.line}]");
+            
         }
         private static void Report(int line, String where,
                              String message)
