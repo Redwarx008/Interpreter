@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -31,22 +32,43 @@ namespace Interpreter
             _tokens = tokens;
         }
 
-        public Expr? Parse()
+        public List<Stmt> Parse()
         {
-            try
+            List<Stmt> statements = new();
+            while(!IsAtEnd())
             {
-                return Expression();
+                statements.Add(Statement());
             }
-            catch(ParserError error)
-            {
-                return null;
-            }
+            return statements;
         }
 
         #region Expression Handler
         private Expr Expression()
         {
             return Equality();
+        }
+
+        private Stmt Statement()
+        {
+            if(Match(TokenType.PRINT))
+            {
+                return PrintStatement();
+            }
+            return ExpressionStatement();   
+        }
+
+        private Stmt PrintStatement()
+        {
+            Expr value = Expression();
+            Consume(TokenType.SEMICOLON, "Expect ';' after value.");
+            return new Stmt.Print(value);
+        }
+
+        private Stmt ExpressionStatement()
+        {
+            Expr expr = Expression();
+            Consume(TokenType.SEMICOLON, "Expect ';' after expression.");
+            return new Stmt.Expression(expr);
         }
         // equality → comparison ( ( "!=" | "==" ) comparison )* ;
         private Expr Equality()
@@ -144,13 +166,13 @@ namespace Interpreter
             }
             return false;
         }
-        private Token Consume(TokenType type, string message)
+        private Token Consume(TokenType type, string errorMessage)
         {
             if(Check(type))
             {
                 return Advance();
             }
-            throw Error(Peek(), message);
+            throw Error(Peek(), errorMessage);
         }
         private ParserError Error(Token token, string message)
         {

@@ -7,14 +7,16 @@ using LoxGenerated;
 
 namespace Interpreter
 {
-    internal class Interpreter : Expr.Visitor<Object>
+    internal class Interpreter : Expr.Visitor<Object>, Stmt.Visitor
     {
-        public void Interpret(Expr expression)
+        public void Interpret(List<Stmt> statements)
         {
             try
             {
-                object value = Evaluate(expression);
-                Console.WriteLine(Stringify(value));
+                foreach (Stmt stmt in statements)
+                {
+                    Execute(stmt);
+                }
             }
             catch(RuntimeError error)
             {
@@ -143,6 +145,22 @@ namespace Interpreter
         private object Evaluate(Expr expr)
         {
             return expr.Accept(this);   
+        }
+
+        private void Execute(Stmt stmt)
+        {
+            stmt.Accept(this);
+        }
+
+        public void VisitExpressionStmt(Stmt.Expression stmt)
+        {
+            Evaluate(stmt.expression);
+        }
+
+        public void VisitPrintStmt(Stmt.Print stmt)
+        {
+            object value = Evaluate(stmt.expression);
+            Console.Write(Stringify(value));
         }
     }
 }
