@@ -9,15 +9,24 @@ using System.Threading.Tasks;
 
 namespace Interpreter
 {
-    //  expression     → equality ;
+    //  ------------statement------------------
+    //  program        → declaration* EOF;
+    //  declaration    → varDecl | statement ;
+    //  varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+    //  statement      → exprStmt | printStmt | block ;
+    //  exprStmt       → expression ";" ;
+    //  printStmt      → "print" expression ";" ;
+    //  block          → "{" declaration* "}" ;
+    //  ------------expression----------------
+    //  expression     → assignment;
+    //  assignment     → IDENTIFIER "=" assignment | equality ;
     //  equality       → comparison(( "!=" | "==" ) comparison )* ;
     //  comparison     → term(( ">" | ">=" | "<" | "<=" ) term )* ;
     //  term           → factor(( "-" | "+" ) factor )* ;
     //  factor         → unary(( "/" | "*" ) unary )* ;
-    //  unary          → ( "!" | "-" ) unary
-    //                 | primary ;
+    //  unary          → ( "!" | "-" ) unary | primary ;
     //  primary        → NUMBER | STRING | "true" | "false" | "nil"
-    //                 | "(" expression ")" ;
+    //                 | "(" expression ")" | IDENTIFIER ;
     internal class Parser
     {
         private class ParserError : Exception
@@ -37,15 +46,31 @@ namespace Interpreter
             List<Stmt> statements = new();
             while(!IsAtEnd())
             {
-                statements.Add(Statement());
+                statements.Add(Declaration());
             }
             return statements;
         }
 
-        #region Expression Handler
+        #region Expression and Statement Handler
         private Expr Expression()
         {
-            return Equality();
+            return Assignment();
+        }
+        private Stmt Declaration()
+        {
+            try
+            {
+                if(Match(TokenType.VAR))
+                {
+                    return VarDeclaration();
+                }
+                return Statement();
+            }
+            catch(ParserError error)
+            {
+                Synchronize();
+                return null;
+            }
         }
 
         private Stmt Statement()
@@ -53,6 +78,10 @@ namespace Interpreter
             if(Match(TokenType.PRINT))
             {
                 return PrintStatement();
+            }
+            if(Match(TokenType.LEFT_BRACE))
+            {
+                return new Stmt.Block(Block()!);
             }
             return ExpressionStatement();   
         }
@@ -63,12 +92,40 @@ namespace Interpreter
             Consume(TokenType.SEMICOLON, "Expect ';' after value.");
             return new Stmt.Print(value);
         }
+        private Stmt VarDeclaration()
+        {
+            Token name = Consume(TokenType.IDENTIFIER, "Expect variable name.");
+
+            Expr initializer = null;
+
+            if(Match(TokenType.EQUAL))
+            {
+                initializer = Expression();
+            }
+
+            Consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
+            return new Stmt.Var(name, initializer!);
+        }
 
         private Stmt ExpressionStatement()
         {
             Expr expr = Expression();
             Consume(TokenType.SEMICOLON, "Expect ';' after expression.");
             return new Stmt.Expression(expr);
+        }
+
+        private List<Stmt> Block()
+        {
+            List<Stmt> statements = new();
+
+            while(!Check(TokenType.RIGHT_BRACE) && !IsAtEnd())
+            {
+                statements.Add(Declaration());
+            }
+
+            Consume(TokenType.RIGHT_BRACE, "Expect '}' after block.");
+
+            return statements;
         }
         // equality → comparison ( ( "!=" | "==" ) comparison )* ;
         private Expr Equality()
@@ -81,6 +138,27 @@ namespace Interpreter
                 Expr right = Comparison();
                 expr = new Expr.Binary(expr, loxOperator, right);
             }
+            return expr;
+        }
+
+        private Expr Assignment()
+        {
+            Expr expr = Equality();
+
+            if(Match(TokenType.EQUAL))
+            {
+                Token equals = Previous();
+                Expr value = Assignment();  
+
+                if(expr is Expr.Variable exprVariable)
+                {
+                    Token name = exprVariable.name;
+                    return new Expr.Assign(name, value);
+                }
+
+                Error(equals, "Invalid assignment target.");
+            }
+
             return expr;
         }
         // comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -136,17 +214,21 @@ namespace Interpreter
         {
             if (Match(TokenType.FALSE)) return new Expr.Literal(false);
             if (Match(TokenType.TRUE)) return new Expr.Literal(true);
-            if (Match(TokenType.NIL)) return new Expr.Literal(null);
+            if (Match(TokenType.NIL)) return new Expr.Literal(null!);
 
             if(Match(TokenType.NUMBER, TokenType.STRING))
             {
-                return new Expr.Literal(Previous().literal);
+                return new Expr.Literal(Previous().literal!);
             }
             if(Match(TokenType.LEFT_PAREN))
             {
                 Expr expr = Expression();
                 Consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
                 return new Expr.Grouping(expr);
+            }
+            if(Match(TokenType.IDENTIFIER))
+            {
+                return new Expr.Variable(Previous());
             }
 
             throw Error(Peek(), "Expect expression.");

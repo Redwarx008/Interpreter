@@ -48,5 +48,15 @@ namespace Interpreter
             builder.Append(')');
             return builder.ToString();
         }
+
+        public string VisitVariableExpr(Expr.Variable expr)
+        {
+            throw new NotImplementedException();
+        }
+
+        public string VisitAssignExpr(Expr.Assign expr)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

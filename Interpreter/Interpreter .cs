@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using LoxGenerated;
@@ -9,6 +10,8 @@ namespace Interpreter
 {
     internal class Interpreter : Expr.Visitor<Object>, Stmt.Visitor
     {
+        private Environment _environment = new();
+
         public void Interpret(List<Stmt> statements)
         {
             try
@@ -23,7 +26,7 @@ namespace Interpreter
                 Lox.RunTimeError(error);    
             }
         }
-        public object? VisitBinaryExpr(Expr.Binary expr)
+        public object VisitBinaryExpr(Expr.Binary expr)
         {
             object left = Evaluate(expr.left);
             object right = Evaluate(expr.right);
@@ -70,17 +73,17 @@ namespace Interpreter
             return null;
         }
 
-        public object? VisitGroupingExpr(Expr.Grouping expr)
+        public object VisitGroupingExpr(Expr.Grouping expr)
         {
             return Evaluate(expr.expression);
         }
 
-        public object? VisitLiteralExpr(Expr.Literal expr)
+        public object VisitLiteralExpr(Expr.Literal expr)
         {
             return expr.value;
         }
 
-        public object? VisitUnaryExpr(Expr.Unary expr)
+        public object VisitUnaryExpr(Expr.Unary expr)
         {
             object right = Evaluate(expr.right);
 
@@ -93,7 +96,12 @@ namespace Interpreter
                     return !IsTruthy(right);
             }
             // Unreachable.
-            return null!;
+            return null;
+        }
+
+        public object VisitVariableExpr(Expr.Variable expr)
+        {
+            return _environment.Get(expr.name);
         }
         private void CheckNumberOperand(Token loxOperator, object operand)
         {
@@ -102,6 +110,12 @@ namespace Interpreter
                 return;
             }
             throw new RuntimeError(loxOperator, "Operand must be a number.");
+        }
+        public object VisitAssignExpr(Expr.Assign expr)
+        {
+            object value = Evaluate(expr.value);
+            _environment.Assign(expr.name, value);
+            return value;
         }
         private void CheckNumberOperands(Token loxOperator, object leftOperand, object rightOperand)
         {
@@ -149,7 +163,29 @@ namespace Interpreter
 
         private void Execute(Stmt stmt)
         {
+            if(stmt == null)
+            {
+                return;
+            }
             stmt.Accept(this);
+        }
+
+        private void ExecuteBlock(List<Stmt> statements, Environment environment)
+        {
+            Environment previous = _environment;
+
+            try
+            {
+                _environment = environment;
+                foreach(Stmt stmt in statements)
+                {
+                    Execute(stmt);
+                }
+            }
+            finally
+            {
+                _environment = previous;
+            }
         }
 
         public void VisitExpressionStmt(Stmt.Expression stmt)
@@ -161,6 +197,22 @@ namespace Interpreter
         {
             object value = Evaluate(stmt.expression);
             Console.Write(Stringify(value));
+        }
+
+        public void VisitVarStmt(Stmt.Var stmt)
+        {
+            object value = null;
+            if(stmt.initializer != null)
+            {
+                value = Evaluate(stmt.initializer);
+            }
+
+            _environment.Define(stmt.name.lexeme, value);
+        }
+
+        public void VisitBlockStmt(Stmt.Block stmt)
+        {
+            ExecuteBlock(stmt.statements, new Environment(_environment));
         }
     }
 }

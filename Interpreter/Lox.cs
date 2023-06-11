@@ -56,7 +56,7 @@ namespace Interpreter
             while(true)
             {
                 Console.Write(">");
-                string? line = Console.ReadLine();
+                string line = Console.ReadLine();
                 if(line == null)
                     break;
                 Run(line);

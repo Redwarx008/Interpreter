@@ -32,10 +32,10 @@ namespace Interpreter
     {
         internal TokenType type;
         internal string lexeme;
-        internal object? literal;
+        internal object literal;
         internal int line;
 
-        public Token(TokenType type, string lexeme, object? literal, int line)
+        public Token(TokenType type, string lexeme, object literal, int line)
         {
             this.type = type;
             this.lexeme = lexeme;

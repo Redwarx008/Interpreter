@@ -28,7 +28,7 @@ namespace SourceGenerator
                 if(isGeneric)
                 {
                     _codeSB.Append($@"
-            public R? Visit{typeName}{baseName}({typeName} {baseName.ToLower()});
+            public R Visit{typeName}{baseName}({typeName} {baseName.ToLower()});
 ");
                 }
                 else
@@ -136,10 +136,12 @@ namespace LoxGenerated
         {
             List<string> _exprDsp = new List<string>()
             {
+                "Assign   : Token name, Expr value",
                 "Binary   : Expr left, Token loxOperator, Expr right",
                 "Grouping : Expr expression",
                 "Literal  : Object value",
-                "Unary    : Token loxOperator, Expr right"
+                "Unary    : Token loxOperator, Expr right",
+                "Variable : Token name"
             };
             DefineAst("Expr", _exprDsp, true);
             using (var writeStream = File.CreateText("Expr.g.cs"))
@@ -149,8 +151,10 @@ namespace LoxGenerated
             _codeSB.Clear();
             List<string> _stmtDsp = new List<string>()
             {
+                "Block      : List<Stmt> statements",
                 "Expression : Expr expression",
-                "Print      : Expr expression"
+                "Print      : Expr expression",
+                "Var        : Token name, Expr initializer"
             };
             DefineAst("Stmt", _stmtDsp, false);
             using (var writeStream = File.CreateText("Stmt.g.cs"))

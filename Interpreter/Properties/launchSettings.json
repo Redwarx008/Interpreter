@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Interpreter": {
+      "commandName": "Project",
+      "commandLineArgs": "test.lox",
+      "workingDirectory": "."
+    }
+  }
+}
