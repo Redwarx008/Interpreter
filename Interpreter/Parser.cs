@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,22 +12,35 @@ namespace Interpreter
 {
     //  ------------statement------------------
     //  program        → declaration* EOF;
-    //  declaration    → varDecl | statement ;
+    //  declaration    → funDecl | varDecl | statement ;
+    //  funDecl        → "fun" function ;
     //  varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
-    //  statement      → exprStmt | printStmt | block ;
+    //  statement      → exprStmt | ifStmt | printStmt | whileStmt | forStmt | block ;
+    //  forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+    //                  expression? ";"
+    //                  expression? ")" statement ;
+    //  whileStmt      → "while" "(" expression ")" statement ;
+    //  ifStmt         → "if" "(" expression ")" statement ( "else" statement )? ;
     //  exprStmt       → expression ";" ;
     //  printStmt      → "print" expression ";" ;
     //  block          → "{" declaration* "}" ;
     //  ------------expression----------------
     //  expression     → assignment;
-    //  assignment     → IDENTIFIER "=" assignment | equality ;
+    //  assignment     → IDENTIFIER "=" assignment | logic_or  ;
+    //  logic_or       → logic_and( "or" logic_and )* ;
+    //  logic_and      → equality( "and" equality )* ;
     //  equality       → comparison(( "!=" | "==" ) comparison )* ;
     //  comparison     → term(( ">" | ">=" | "<" | "<=" ) term )* ;
     //  term           → factor(( "-" | "+" ) factor )* ;
     //  factor         → unary(( "/" | "*" ) unary )* ;
-    //  unary          → ( "!" | "-" ) unary | primary ;
+    //  unary          → ( "!" | "-" ) unary | call  ;
+    //  call           → primary( "(" arguments? ")" )* ;
     //  primary        → NUMBER | STRING | "true" | "false" | "nil"
     //                 | "(" expression ")" | IDENTIFIER ;
+    //-------------utility rules------------------
+    //  arguments      → expression( "," expression )* ;
+    //  function       → IDENTIFIER "(" parameters? ")" block ;
+    //  parameters     → IDENTIFIER( "," IDENTIFIER )* ;
     internal class Parser
     {
         private class ParserError : Exception
@@ -60,6 +74,10 @@ namespace Interpreter
         {
             try
             {
+                if(Match(TokenType.FUN))
+                {
+                    return Function("function");
+                }
                 if(Match(TokenType.VAR))
                 {
                     return VarDeclaration();
@@ -75,9 +93,21 @@ namespace Interpreter
 
         private Stmt Statement()
         {
+            if(Match(TokenType.IF))
+            {
+                return IfStatement();
+            }
             if(Match(TokenType.PRINT))
             {
                 return PrintStatement();
+            }
+            if(Match(TokenType.WHILE))
+            {
+                return WhileStatement();
+            }
+            if(Match(TokenType.FOR))
+            {
+                return ForStatement();
             }
             if(Match(TokenType.LEFT_BRACE))
             {
@@ -86,6 +116,21 @@ namespace Interpreter
             return ExpressionStatement();   
         }
 
+        private Stmt IfStatement()
+        {
+            Consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.");
+            Expr condition = Expression();
+            Consume(TokenType.RIGHT_PAREN, "Expect ')' after if condition.");
+
+            Stmt thenBranch = Statement();
+            Stmt elseBranch = null;
+            if(Match(TokenType.ELSE))
+            {
+                elseBranch = Statement();
+            }
+
+            return new Stmt.If(condition, thenBranch, elseBranch);
+        }
         private Stmt PrintStatement()
         {
             Expr value = Expression();
@@ -107,6 +152,65 @@ namespace Interpreter
             return new Stmt.Var(name, initializer!);
         }
 
+        private Stmt WhileStatement()
+        {
+            Consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.");
+            Expr condition = Expression();
+            Consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.");
+            Stmt body = Statement();
+
+            return new Stmt.While(condition, body);
+        }
+
+        private Stmt ForStatement()
+        {
+            Consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.");
+            Stmt initializer;
+            if(Match(TokenType.SEMICOLON))
+            {
+                initializer = null;
+            }
+            else if(Match(TokenType.VAR))
+            {
+                initializer = VarDeclaration();
+            }
+            else
+            {
+                initializer = ExpressionStatement();
+            }
+
+            Expr condition = null;
+            if(!Check(TokenType.SEMICOLON))
+            {
+                condition = Expression();
+            }
+            Consume(TokenType.SEMICOLON, "Expect ';' after loop condition.");
+
+            Expr increment = null;
+            if(!Check(TokenType.RIGHT_PAREN))
+            {
+                increment = Expression();
+            }
+            Consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.");
+
+            Stmt body = Statement();
+
+            if(increment != null)
+            {
+                body = new Stmt.Block(new List<Stmt>() { body,
+                    new Stmt.Expression(increment) });
+            }
+            if(condition == null)
+            {
+                condition = new Expr.Literal(true);
+            }
+            body = new Stmt.While(condition, body);
+            if (initializer != null)
+            {
+                body = new Stmt.Block(new List<Stmt>() { initializer, body });
+            }
+            return body;
+        }
         private Stmt ExpressionStatement()
         {
             Expr expr = Expression();
@@ -114,6 +218,30 @@ namespace Interpreter
             return new Stmt.Expression(expr);
         }
 
+        private Stmt.Function Function(string kind)
+        {
+            Token name = Consume(TokenType.IDENTIFIER, $"Expect {kind} name.");
+
+            Consume(TokenType.LEFT_PAREN, $"Expect '(' after {kind} name.");
+            List<Token> parameters = new List<Token>();
+            if(!Check(TokenType.RIGHT_PAREN))
+            {
+                do
+                {
+                    if (parameters.Count >= 255)
+                    {
+                        Error(Peek(), "Can't have more than 255 parameters.");
+                    }
+                    parameters.Add(Consume(TokenType.IDENTIFIER, "Expect parameter name."));
+                }
+                while (Match(TokenType.COMMA));
+            }
+            Consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
+
+            Consume(TokenType.LEFT_BRACE, $"Expect '{{' before {kind} body.");
+            List<Stmt> body = Block();
+            return new Stmt.Function(name, parameters, body);
+        }
         private List<Stmt> Block()
         {
             List<Stmt> statements = new();
@@ -127,7 +255,7 @@ namespace Interpreter
 
             return statements;
         }
-        // equality → comparison ( ( "!=" | "==" ) comparison )* ;
+
         private Expr Equality()
         {
             Expr expr = Comparison();
@@ -143,7 +271,7 @@ namespace Interpreter
 
         private Expr Assignment()
         {
-            Expr expr = Equality();
+            Expr expr = Or();
 
             if(Match(TokenType.EQUAL))
             {
@@ -161,7 +289,31 @@ namespace Interpreter
 
             return expr;
         }
-        // comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+        
+        private Expr Or()
+        {
+            Expr expr = And();
+
+            while(Match(TokenType.OR))
+            {
+                Token loxOperator = Previous();
+                Expr right = And();
+                expr = new Expr.Logical(expr, loxOperator, right);
+            }
+            return expr;
+        }
+        private Expr And()
+        {
+            Expr expr = Equality();
+
+            while(Match(TokenType.AND))
+            {
+                Token loxOperator = Previous();
+                Expr right = Equality();
+                expr = new Expr.Logical(expr, loxOperator, right);
+            }
+            return expr;
+        }
         private Expr Comparison()
         {
             Expr expr = Term();
@@ -208,7 +360,44 @@ namespace Interpreter
                 return new Expr.Unary(loxOperator, right);
             }
 
-            return Primary();
+            return Call();
+        }
+
+        private Expr Call()
+        {
+            Expr expr = Primary();
+
+            while(true)
+            {
+                if(Match(TokenType.LEFT_PAREN))
+                {
+                    expr = FinishCall(expr);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return expr;
+        }
+        private Expr FinishCall(Expr callee)
+        {
+            List<Expr> args = new List<Expr>();
+            if(!Check(TokenType.RIGHT_PAREN))
+            {
+                do
+                {
+                    if(args.Count >= 255)
+                    {
+                        Error(Peek(), "Can't have more than 255 arguments.");
+                    }
+                    args.Add(Expression());
+                }
+                while(Match(TokenType.COMMA));
+            }
+
+            Token paren = Consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
+            return new Expr.Call(callee, paren, args);
         }
         private Expr Primary()
         {

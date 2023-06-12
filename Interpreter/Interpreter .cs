@@ -10,8 +10,15 @@ namespace Interpreter
 {
     internal class Interpreter : Expr.Visitor<Object>, Stmt.Visitor
     {
-        private Environment _environment = new();
+        public Environment Global { get; private set; }
 
+        private Environment _current;
+
+        public Interpreter()
+        {
+            Global = new Environment();
+            _current = Global;  
+        }
         public void Interpret(List<Stmt> statements)
         {
             try
@@ -73,6 +80,29 @@ namespace Interpreter
             return null;
         }
 
+        public object VisitCallExpr(Expr.Call expr)
+        {
+            object callee = Evaluate(expr.callee);
+
+            List<object> args = new List<object>();
+            foreach(Expr arg in expr.arguments)
+            {
+                args.Add(Evaluate(arg));    
+            }
+
+            if(callee is not LoxCallable)
+            {
+                throw new RuntimeError(expr.paren, "Can only call functions and classes.");
+            }
+            LoxCallable function = (LoxCallable)callee;
+
+            if(args.Count != function.Arity())
+            {
+                throw new RuntimeError(expr.paren, $"Expected {function.Arity()} arguments but got" +
+                    $"{args.Count}.");
+            }
+            return function.Call(this, args);
+        }
         public object VisitGroupingExpr(Expr.Grouping expr)
         {
             return Evaluate(expr.expression);
@@ -83,6 +113,27 @@ namespace Interpreter
             return expr.value;
         }
 
+        public object VisitLogicalExpr(Expr.Logical expr)
+        {
+            object left = Evaluate(expr.left);
+
+            if(expr.loxOperator.type == TokenType.OR)
+            {
+                if(IsTruthy(left))
+                {
+                    return left;
+                }
+            }
+            else
+            {
+                if(!IsTruthy(left))
+                {
+                    return left;
+                }
+            }
+
+            return Evaluate(expr.right);
+        }
         public object VisitUnaryExpr(Expr.Unary expr)
         {
             object right = Evaluate(expr.right);
@@ -101,8 +152,17 @@ namespace Interpreter
 
         public object VisitVariableExpr(Expr.Variable expr)
         {
-            return _environment.Get(expr.name);
+            return _current.Get(expr.name);
         }
+
+        public object VisitAssignExpr(Expr.Assign expr)
+        {
+            object value = Evaluate(expr.value);
+            _current.Assign(expr.name, value);
+            return value;
+        }
+
+
         private void CheckNumberOperand(Token loxOperator, object operand)
         {
             if(operand is double)
@@ -111,12 +171,7 @@ namespace Interpreter
             }
             throw new RuntimeError(loxOperator, "Operand must be a number.");
         }
-        public object VisitAssignExpr(Expr.Assign expr)
-        {
-            object value = Evaluate(expr.value);
-            _environment.Assign(expr.name, value);
-            return value;
-        }
+
         private void CheckNumberOperands(Token loxOperator, object leftOperand, object rightOperand)
         {
             if(leftOperand is double && rightOperand is double)
@@ -170,13 +225,13 @@ namespace Interpreter
             stmt.Accept(this);
         }
 
-        private void ExecuteBlock(List<Stmt> statements, Environment environment)
+        public void ExecuteBlock(List<Stmt> statements, Environment environment)
         {
-            Environment previous = _environment;
+            Environment previous = _current;
 
             try
             {
-                _environment = environment;
+                _current = environment;
                 foreach(Stmt stmt in statements)
                 {
                     Execute(stmt);
@@ -184,7 +239,7 @@ namespace Interpreter
             }
             finally
             {
-                _environment = previous;
+                _current = previous;
             }
         }
 
@@ -193,6 +248,22 @@ namespace Interpreter
             Evaluate(stmt.expression);
         }
 
+        public void VisitFunctionStmt(Stmt.Function stmt)
+        {
+            LoxFunction function = new(stmt);
+            _current.Define(stmt.name.lexeme, function);
+        }
+        public void VisitIfStmt(Stmt.If stmt)
+        {
+            if(IsTruthy(Evaluate(stmt.condition)))
+            {
+                Execute(stmt.thenBranch);
+            }
+            else if(stmt.elseBranch != null)
+            {
+                Execute(stmt.elseBranch);
+            }
+        }
         public void VisitPrintStmt(Stmt.Print stmt)
         {
             object value = Evaluate(stmt.expression);
@@ -207,12 +278,20 @@ namespace Interpreter
                 value = Evaluate(stmt.initializer);
             }
 
-            _environment.Define(stmt.name.lexeme, value);
+            _current.Define(stmt.name.lexeme, value);
+        }
+
+        public void VisitWhileStmt(Stmt.While stmt)
+        {
+            while(IsTruthy(Evaluate(stmt.condition)))
+            {
+                Execute(stmt.body);
+            }
         }
 
         public void VisitBlockStmt(Stmt.Block stmt)
         {
-            ExecuteBlock(stmt.statements, new Environment(_environment));
+            ExecuteBlock(stmt.statements, new Environment(_current));
         }
     }
 }

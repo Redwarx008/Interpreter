@@ -193,7 +193,7 @@ namespace Interpreter
         {
             AddToken(type, null);
         }
-        private void AddToken(TokenType type, Object? literal)
+        private void AddToken(TokenType type, Object literal)
         {
             String text = _source.Substring(_start, _current - _start);
             _tokens.Add(new Token(type, text, literal, _line));

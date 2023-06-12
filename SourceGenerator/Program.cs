@@ -138,8 +138,10 @@ namespace LoxGenerated
             {
                 "Assign   : Token name, Expr value",
                 "Binary   : Expr left, Token loxOperator, Expr right",
+                "Call     : Expr callee, Token paren, List<Expr> arguments",
                 "Grouping : Expr expression",
                 "Literal  : Object value",
+                "Logical  : Expr left, Token loxOperator, Expr right",
                 "Unary    : Token loxOperator, Expr right",
                 "Variable : Token name"
             };
@@ -153,6 +155,7 @@ namespace LoxGenerated
             {
                 "Block      : List<Stmt> statements",
                 "Expression : Expr expression",
+                "Function   : Token name, List<Token> parameters, List<Stmt> body",
                 "Print      : Expr expression",
                 "Var        : Token name, Expr initializer"
             };
