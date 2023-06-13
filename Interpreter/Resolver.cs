@@ -12,7 +12,7 @@ namespace Interpreter
     {
         private Interpreter _interpreter;
 
-        private Stack<Dictionary<string, bool>> _scopes = new();
+        private List<Dictionary<string, bool>> _scopes = new();
 
         public Resolver(Interpreter interpreter)
         {
@@ -44,6 +44,19 @@ namespace Interpreter
             Define(stmt.name);  
 
         }
+
+        public void VisitAssignExpr(Expr.Assign expr)
+        {
+            Reslove(expr.value);
+        }
+        public void VisitVariableExpr(Expr.Variable expr)
+        {
+            if(_scopes.Count == 0 && _scopes[_scopes.Count - 1][expr.name.lexeme] == false)
+            {
+                Lox.Error(expr.name, "Can't read local variable in its own initializer.");
+            }
+
+        }
         private void Reslove(Stmt stmt)
         {
             stmt.Accept(this);
@@ -56,12 +69,12 @@ namespace Interpreter
 
         private void BeginScope()
         {
-            _scopes.Push(new Dictionary<string, bool>());
+            _scopes.Add(new Dictionary<string, bool>());
         }
 
         private void EndScope()
         {
-            _scopes.Pop();
+            _scopes.RemoveAt(_scopes.Count - 1);
         }
 
         private void Declare(Token name)
@@ -70,7 +83,7 @@ namespace Interpreter
             {
                 return;
             }
-            Dictionary<string, bool> scope = _scopes.Peek();
+            Dictionary<string, bool> scope = _scopes[_scopes.Count - 1];
             scope[name.lexeme] = false;
         }
 
@@ -80,7 +93,18 @@ namespace Interpreter
             {
                 return;
             }
-            _scopes.Peek()[name.lexeme] = true;
+            _scopes[_scopes.Count - 1][name.lexeme] = true;
+        }
+
+        private void ResolveLocal(Expr expr, Token name)
+        {
+            for(int i = _scopes.Count - 1; i >= 0; i--)
+            {
+                if (_scopes[i].ContainsKey(name.lexeme))
+                {
+                    return;
+                }
+            }
         }
     }
 }
