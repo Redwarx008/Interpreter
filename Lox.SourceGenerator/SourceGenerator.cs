@@ -80,23 +80,16 @@ namespace Lox.SourceGenerator
         ");
 
             // Visitor pattern.
-            if(isGeneric)
-            {
-                _codeSB.Append($@"
+            _codeSB.Append($@"
+            internal override void Accept(Visitor visitor)
+            {{
+                visitor.Visit{className}{baseName}(this);
+            }}
+
             internal override R Accept<R>(Visitor<R> visitor)
             {{
                 return visitor.Visit{className}{baseName}(this);
             }}");
-            }
-            else
-            {
-                _codeSB.Append($@"
-            internal override void Accept(Visitor visitor)
-            {{
-                visitor.Visit{className}{baseName}(this);
-            }}");
-            }
-
 
             // Fields.
             foreach (string field in fields)
@@ -131,29 +124,22 @@ namespace LoxGenerated
     public abstract class {baseName}
     {{
 ");
-            DefineVisitor(baseName, dsp, isGeneric);
+            DefineVisitor(baseName, dsp, true);
+            DefineVisitor(baseName, dsp, false);
             for (int i = 0; i < dsp.Count; i++)
             {
                 string className = dsp[i].Split(':')[0].Trim();
                 string fields = dsp[i].Split(':')[1];
                 DefineType(baseName, className, fields, isGeneric);
             }
-            if (isGeneric)
-            {
-                _codeSB.Append($@"
+            _codeSB.Append($@"
+
+        internal abstract void Accept(Visitor visitor);
+
         internal abstract R Accept<R>(Visitor<R> visitor);
     }}
 }}
 ");
-            }
-            else
-            {
-                _codeSB.Append($@"
-        internal abstract void Accept(Visitor visitor);
-    }}
-}}
-");
-            }
 
         }
         public void Execute(GeneratorExecutionContext context)
