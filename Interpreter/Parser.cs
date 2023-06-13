@@ -15,7 +15,7 @@ namespace Interpreter
     //  declaration    → funDecl | varDecl | statement ;
     //  funDecl        → "fun" function ;
     //  varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
-    //  statement      → exprStmt | ifStmt | printStmt | whileStmt | forStmt | block ;
+    //  statement      → exprStmt | ifStmt | printStmt | returnStmt | whileStmt | forStmt | block ;
     //  forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
     //                  expression? ";"
     //                  expression? ")" statement ;
@@ -23,6 +23,7 @@ namespace Interpreter
     //  ifStmt         → "if" "(" expression ")" statement ( "else" statement )? ;
     //  exprStmt       → expression ";" ;
     //  printStmt      → "print" expression ";" ;
+    //  returnStmt     → "return" expression? ";" ;
     //  block          → "{" declaration* "}" ;
     //  ------------expression----------------
     //  expression     → assignment;
@@ -101,6 +102,10 @@ namespace Interpreter
             {
                 return PrintStatement();
             }
+            if(Match(TokenType.RETURN))
+            {
+                return ReturnStatement();
+            }
             if(Match(TokenType.WHILE))
             {
                 return WhileStatement();
@@ -136,6 +141,18 @@ namespace Interpreter
             Expr value = Expression();
             Consume(TokenType.SEMICOLON, "Expect ';' after value.");
             return new Stmt.Print(value);
+        }
+
+        private Stmt ReturnStatement()
+        {
+            Token keyword = Previous();
+            Expr value = null;
+            if(!Check(TokenType.SEMICOLON))
+            {
+                value = Expression();
+            }
+            Consume(TokenType.SEMICOLON, "Expect ';' after return value.");
+            return new Stmt.Return(keyword, value);
         }
         private Stmt VarDeclaration()
         {

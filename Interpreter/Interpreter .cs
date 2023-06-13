@@ -8,16 +8,16 @@ using LoxGenerated;
 
 namespace Interpreter
 {
-    internal class Interpreter : Expr.Visitor<Object>, Stmt.Visitor
+    internal class Interpreter : Expr.Visitor<object>, Stmt.Visitor
     {
         public Environment Global { get; private set; }
 
-        private Environment _current;
+        private Environment _currentEnv;
 
         public Interpreter()
         {
             Global = new Environment();
-            _current = Global;  
+            _currentEnv = Global;  
         }
         public void Interpret(List<Stmt> statements)
         {
@@ -152,13 +152,13 @@ namespace Interpreter
 
         public object VisitVariableExpr(Expr.Variable expr)
         {
-            return _current.Get(expr.name);
+            return _currentEnv.Get(expr.name);
         }
 
         public object VisitAssignExpr(Expr.Assign expr)
         {
             object value = Evaluate(expr.value);
-            _current.Assign(expr.name, value);
+            _currentEnv.Assign(expr.name, value);
             return value;
         }
 
@@ -227,11 +227,11 @@ namespace Interpreter
 
         public void ExecuteBlock(List<Stmt> statements, Environment environment)
         {
-            Environment previous = _current;
+            Environment previous = _currentEnv;
 
             try
             {
-                _current = environment;
+                _currentEnv = environment;
                 foreach(Stmt stmt in statements)
                 {
                     Execute(stmt);
@@ -239,7 +239,7 @@ namespace Interpreter
             }
             finally
             {
-                _current = previous;
+                _currentEnv = previous;
             }
         }
 
@@ -250,8 +250,8 @@ namespace Interpreter
 
         public void VisitFunctionStmt(Stmt.Function stmt)
         {
-            LoxFunction function = new(stmt);
-            _current.Define(stmt.name.lexeme, function);
+            LoxFunction function = new(stmt, _currentEnv);
+            _currentEnv.Define(stmt.name.lexeme, function);
         }
         public void VisitIfStmt(Stmt.If stmt)
         {
@@ -270,6 +270,16 @@ namespace Interpreter
             Console.Write(Stringify(value));
         }
 
+        public void VisitReturnStmt(Stmt.Return stmt)
+        {
+            object value = null;
+            if(stmt.value != null)
+            {
+                value = Evaluate(stmt.value);
+            }
+            throw new Return(value);
+        }
+
         public void VisitVarStmt(Stmt.Var stmt)
         {
             object value = null;
@@ -278,7 +288,7 @@ namespace Interpreter
                 value = Evaluate(stmt.initializer);
             }
 
-            _current.Define(stmt.name.lexeme, value);
+            _currentEnv.Define(stmt.name.lexeme, value);
         }
 
         public void VisitWhileStmt(Stmt.While stmt)
@@ -291,7 +301,7 @@ namespace Interpreter
 
         public void VisitBlockStmt(Stmt.Block stmt)
         {
-            ExecuteBlock(stmt.statements, new Environment(_current));
+            ExecuteBlock(stmt.statements, new Environment(_currentEnv));
         }
     }
 }

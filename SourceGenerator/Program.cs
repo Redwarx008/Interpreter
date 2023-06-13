@@ -157,6 +157,7 @@ namespace LoxGenerated
                 "Expression : Expr expression",
                 "Function   : Token name, List<Token> parameters, List<Stmt> body",
                 "Print      : Expr expression",
+                "Return     : Token keyword, Expr value",
                 "Var        : Token name, Expr initializer"
             };
             DefineAst("Stmt", _stmtDsp, false);

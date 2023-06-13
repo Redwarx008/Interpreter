@@ -173,6 +173,7 @@ namespace LoxGenerated
             DefineAst("Expr", _exprDsp, true);
             context.AddSource("Expr.g.cs", SourceText.From(_codeSB.ToString(), Encoding.UTF8));
             _codeSB.Clear();
+
             List<string> _stmtDsp = new List<string>()
             {
                 "Block      : List<Stmt> statements",
@@ -180,6 +181,7 @@ namespace LoxGenerated
                 "Function   : Token name, List<Token> parameters, List<Stmt> body",
                 "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",
                 "Print      : Expr expression",
+                "Return     : Token keyword, Expr value",
                 "Var        : Token name, Expr initializer",
                 "While      : Expr condition, Stmt body"
             };
