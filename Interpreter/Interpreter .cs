@@ -10,14 +10,16 @@ namespace Interpreter
 {
     internal class Interpreter : Expr.Visitor<object>, Stmt.Visitor
     {
-        public Environment Global { get; private set; }
+        public Environment GlobalEnv { get; private set; }
 
         private Environment _currentEnv;
 
+        private Dictionary<Expr, int> _locals = new();
+
         public Interpreter()
         {
-            Global = new Environment();
-            _currentEnv = Global;  
+            GlobalEnv = new Environment();
+            _currentEnv = GlobalEnv;  
         }
         public void Interpret(List<Stmt> statements)
         {
@@ -33,6 +35,11 @@ namespace Interpreter
                 Lox.RunTimeError(error);    
             }
         }
+        public void Resolve(Expr expr, int depth)
+        {
+            _locals.TryAdd(expr, depth);
+        }
+
         public object VisitBinaryExpr(Expr.Binary expr)
         {
             object left = Evaluate(expr.left);
@@ -152,16 +159,35 @@ namespace Interpreter
 
         public object VisitVariableExpr(Expr.Variable expr)
         {
-            return _currentEnv.Get(expr.name);
+            return LookUpVariable(expr.name, expr);
         }
 
         public object VisitAssignExpr(Expr.Assign expr)
         {
             object value = Evaluate(expr.value);
-            _currentEnv.Assign(expr.name, value);
+            
+            if(_locals.TryGetValue(expr, out int distance))
+            {
+                _currentEnv.AssignAt(distance, expr.name, value);
+            }
+            else
+            {
+                GlobalEnv.Assign(expr.name, value);
+            }
             return value;
         }
 
+        private object LookUpVariable(Token name, Expr expr)
+        {
+            if (_locals.TryGetValue(expr, out int distance))
+            {
+                return _currentEnv.GetAt(distance, name.lexeme);
+            }
+            else
+            {
+                return GlobalEnv.Get(name);
+            }
+        }
 
         private void CheckNumberOperand(Token loxOperator, object operand)
         {

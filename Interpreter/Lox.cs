@@ -1,5 +1,6 @@
 ﻿using LoxGenerated;
 using System;
+using System.Diagnostics;
 
 namespace Interpreter
 {
@@ -66,6 +67,8 @@ namespace Interpreter
 
         private static void Run(String source)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             Scanner scanner = new Scanner(source);
             List<Token> tokens = scanner.ScanTokens();
 
@@ -77,7 +80,16 @@ namespace Interpreter
             {
                 return;
             }
+            Resolver resolver = new Resolver(_interpreter);
+            resolver.Reslove(statements);
+            // Stop if there was a resolution error.
+            if (_hadError)
+            {
+                return;
+            }
             _interpreter.Interpret(statements);
+            stopwatch.Stop();
+            Console.WriteLine($"cost {stopwatch.ElapsedMilliseconds} ms");
         }
         public static void Error(int line, string message)
         {

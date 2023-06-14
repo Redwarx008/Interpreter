@@ -8,7 +8,7 @@ namespace Interpreter
 {
     internal class Environment
     {
-        private Dictionary<string, object> _values = new();
+        public Dictionary<string, object> Values { get; private set; } = new();
 
         public Environment Enclosing { get; set; } = null;
 
@@ -20,12 +20,27 @@ namespace Interpreter
         }
         public void Define(string name, object value)
         {
-            _values[name] = value;  
+            Values[name] = value;  
+        }
+
+        public Environment Ancestor(int distance)
+        {
+            Environment env = this;
+            for(int i = 0; i < distance; i++)
+            {
+                env = env.Enclosing;
+            }
+            return env;
+        }
+
+        public object GetAt(int distance, string name)
+        {
+            return Ancestor(distance).Values[name];
         }
 
         public object Get(Token name)
         {
-            if (_values.TryGetValue(name.lexeme, out object value))
+            if (Values.TryGetValue(name.lexeme, out object value))
             {
                 return value;
             }
@@ -40,9 +55,9 @@ namespace Interpreter
 
         public void Assign(Token name , object value)
         {
-            if(_values.ContainsKey(name.lexeme))
+            if(Values.ContainsKey(name.lexeme))
             {
-                _values[name.lexeme] = value;
+                Values[name.lexeme] = value;
                 return;
             }
 
@@ -53,6 +68,11 @@ namespace Interpreter
             }
 
             throw new RuntimeError(name, $"Undefined variable {name.lexeme}.");
+        }
+
+        public void AssignAt(int distance, Token name, object value)
+        {
+            Ancestor(distance).Values[name.lexeme] = value; 
         }
     }
 }
