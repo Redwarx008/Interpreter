@@ -67,8 +67,7 @@ namespace Interpreter
 
         private static void Run(String source)
         {
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
+
             Scanner scanner = new Scanner(source);
             List<Token> tokens = scanner.ScanTokens();
 
@@ -87,6 +86,8 @@ namespace Interpreter
             {
                 return;
             }
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             _interpreter.Interpret(statements);
             stopwatch.Stop();
             Console.WriteLine($"cost {stopwatch.ElapsedMilliseconds} ms");
